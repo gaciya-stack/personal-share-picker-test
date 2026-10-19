@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f7faf8">
+<title>LINE 多人分享測試</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",sans-serif;color:#24332e;background:#f7faf8}
+*{box-sizing:border-box}body{margin:0;padding:22px 16px 40px}main{max-width:520px;margin:auto}
+h1{font-size:24px;margin:8px 0 6px}h2{font-size:16px;margin:0 0 14px}
+p{font-size:14px;color:#5d7267;line-height:1.7}label{display:block;font-size:14px;font-weight:700;margin:0 0 8px}
+.eyebrow{color:#06814b;font-size:12px;font-weight:700;letter-spacing:.06em}
+.card{border-radius:18px;background:white;padding:20px;margin-top:16px;border:1px solid #e1eae5;box-shadow:0 7px 22px #224e2f08}
+input,textarea{width:100%;padding:12px;font:inherit;border-radius:10px;border:1px solid #ccd9d2;outline-offset:3px}
+textarea{min-height:110px;line-height:1.6;resize:vertical}
+.buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+button{border:0;border-radius:10px;background:#009d57;color:white;font-size:15px;font-weight:700;padding:12px 16px;cursor:pointer}
+button.secondary{background:#eaf5ee;color:#17643e}button:disabled{background:#bacdc1;cursor:default}
+.status,.note{border-radius:10px;background:#f0f7f2;padding:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;margin-top:12px}
+.status.error{background:#fff1ec;color:#a33220}.status.ok{background:#e9f9ef;color:#096239}
+.note{color:#4a6757}footer{color:#7a8881;font-size:12px;line-height:1.7;padding:20px 4px}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">PERSONAL SHARE LAB · TEST ONLY</div>
+<h1>LINE 多人分享測試</h1>
+<p>測試 LINE 官方是否允許一次選擇多名收件人。本頁不會存取你的好友名單，也不會自動點擊或解除 LINE 的平台限制。</p>
+<section class="card">
+<h2>① 連接 LIFF</h2>
+<label for="liffId">LIFF ID</label>
+<input id="liffId" type="text" placeholder="例如 1234567890-abcdefgh" autocomplete="off" spellcheck="false">
+<div class="buttons"><button id="initBtn">連接 LIFF</button><button id="clearBtn" type="button" class="secondary">清除設定</button></div>
+<p>LIFF ID 會在你建立 LIFF app 後取得，填入一次即可。僅儲存在本機瀏覽器。</p>
+<div class="status" id="status" role="status">尚未連接 LIFF。</div>
+</section>
+<section class="card">
+<h2>② 開啟 LINE 官方選人介面</h2>
+<label for="message">測試訊息</label>
+<textarea id="message" maxlength="5000" placeholder="例如：這是 LINE 分享功能測試，請忽略。"></textarea>
+<div class="buttons"><button id="shareBtn" disabled>開啟 LINE 選人畫面</button></div>
+<div class="note">提醒：如果你只想查看能選多少人，請在 LINE 畫面選人後取消，不要按最後的「傳送」。按下「傳送」會真的發送訊息。</div>
+</section>
+<section class="card"><h2>測試範圍</h2>
+<p>使用官方 <code>liff.shareTargetPicker()</code>，開啟允許多選的收件人選單。實際人數上限由 LINE 控制，不能在此改成 100、300 或 500 人。</p>
+<p>基於隱私，LINE 不提供實際收件人的姓名或總人數。本頁也不會記錄或上傳這些資訊。</p>
+</section>
+<footer>獨立的 LIFF 功能測試，與「LINE預約助手」V7 無關。測試原始碼公開於 GitHub，不要在此輸入私人密碼或金鑰。</footer>
+</main>
+<script>
+(function(){
+'use strict';
+var key='personalShareLab.liffId';
+var idInput=document.getElementById('liffId');
+var msgInput=document.getElementById('message');
+var status=document.getElementById('status');
+var initBtn=document.getElementById('initBtn');
+var clearBtn=document.getElementById('clearBtn');
+var shareBtn=document.getElementById('shareBtn');
+var initialized=false;
+function report(message,kind){status.textContent=message;status.className='status'+(kind?' '+kind:'');}
+async function initialize(){
+var id=idInput.value.trim();
+if(!id){report('請先輸入 LIFF ID。','error');return;}
+if(!window.liff){report('LINE LIFF SDK 載入失敗，請確認網路。','error');return;}
+initBtn.disabled=true;report('正在連接 LIFF……');
+try{
+await liff.init({liffId:id});
+localStorage.setItem(key,id);initialized=true;
+shareBtn.disabled=false;
+var where=liff.isInClient()?'LINE 內部瀏覽器':'外部瀏覽器';
+var canShare=liff.isApiAvailable('shareTargetPicker');
+report('LIFF 連接成功（'+where+'）。\nLINE 分享選人功能：'+(canShare?'可使用':'尚未啟用或目前環境不支援')+'。','ok');
+}catch(err){initialized=false;shareBtn.disabled=true;report('LIFF 連接失敗：'+(err.message||String(err))+'\n請確認 ID 與 Endpoint URL。','error');}
+finally{initBtn.disabled=false;}
+}
+initBtn.addEventListener('click',initialize);
+clearBtn.addEventListener('click',function(){
+localStorage.removeItem(key);idInput.value='';initialized=false;shareBtn.disabled=true;report('設定已清除。');
+});
+shareBtn.addEventListener('click',async function(){
+if(!initialized){report('請先連接 LIFF。','error');return;}
+var message=msgInput.value.trim();
+if(!message){report('請先輸入測試訊息。','error');return;}
+if(!liff.isLoggedIn()){
+report('尚未登入 LINE，將開啟 LINE 登入畫面。');liff.login({redirectUri:location.href});return;
+}
+if(!liff.isApiAvailable('shareTargetPicker')){
+report('目前無法開啟分享選人介面。請先在 LINE Developers Console 啟用 shareTargetPicker，並嘗試用手機 LINE 開啟 LIFF 網址。','error');return;
+}
+if(!confirm('即將開啟 LINE 的好友選取畫面。\n只要你在 LINE 裡按下最後的「傳送」，訊息就會真正送出。\n確定繼續嗎？'))return;
+shareBtn.disabled=true;report('正在開啟 LINE 官方選人畫面……');
+try{
+var result=await liff.shareTargetPicker([{type:'text',text:message}],{isMultiple:true});
+if(result&&result.status==='success')report('LINE 回報分享成功。為保護隱私，API 不會提供收件人名單或人數。','ok');
+else report('已返回測試頁面。可能取消選人或未收到結果；請以 LINE 聊天室的實際狀態為準。');
+}catch(err){report('選人或分享未完成：'+(err.message||String(err)),'error');}
+finally{shareBtn.disabled=false;}
+});
+try{var params=new URLSearchParams(location.search);var saved=params.get('liffId')||localStorage.getItem(key);if(saved){idInput.value=saved;initialize();}}catch(err){}
+})();
+</script>
+</body></html>
